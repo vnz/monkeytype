@@ -1758,6 +1758,10 @@ if (Object.keys(layouts).length > 0) {
 }
 
 $("#commandLine input").keyup((e) => {
+  commandLineMouseMode = false;
+  $("#commandLineWrapper #commandLine .suggestions .entry").removeClass(
+    "activeMouse"
+  );
   if (e.keyCode == 38 || e.keyCode == 40 || e.keyCode == 13 || e.code == "Tab")
     return;
   updateSuggestedCommands();
@@ -1773,27 +1777,26 @@ $(document).ready((e) => {
         event.preventDefault();
         hideLeaderboards();
         return;
-      } else if (
-        $("#commandLineWrapper").hasClass("hidden") &&
-        (event.keyCode == 9 || !config.swapEscAndTab)
-      ) {
-        if (config.singleListCommandLine == "on")
-          useSingleListCommandLine(false);
-        else currentCommands = [commands];
-        showCommandLine();
-      } else {
-        if (currentCommands.length > 1) {
-          currentCommands.pop();
-          $("#commandLine").removeClass("allCommands");
+      } else if (event.keyCode == 9 || !config.swapEscAndTab) {
+        if ($("#commandLineWrapper").hasClass("hidden")) {
+          if (config.singleListCommandLine == "on")
+            useSingleListCommandLine(false);
+          else currentCommands = [commands];
           showCommandLine();
         } else {
-          hideCommandLine();
-        }
-        setFontFamily(config.fontFamily, true);
-        if (config.customTheme === true) {
-          applyCustomThemeColors();
-        } else {
-          setTheme(config.theme);
+          if (currentCommands.length > 1) {
+            currentCommands.pop();
+            $("#commandLine").removeClass("allCommands");
+            showCommandLine();
+          } else {
+            hideCommandLine();
+          }
+          setFontFamily(config.fontFamily, true);
+          if (config.customTheme === true) {
+            applyCustomThemeColors();
+          } else {
+            setTheme(config.theme);
+          }
         }
       }
     }
@@ -1828,7 +1831,33 @@ $("#commandInput input").keydown((e) => {
   return;
 });
 
+let commandLineMouseMode = false;
+
+$(document).on("mousemove", () => {
+  if (!commandLineMouseMode) commandLineMouseMode = true;
+});
+
+$(document).on(
+  "mouseenter",
+  "#commandLineWrapper #commandLine .suggestions .entry",
+  (e) => {
+    if (!commandLineMouseMode) return;
+    $(e.target).addClass("activeMouse");
+  }
+);
+
+$(document).on(
+  "mouseleave",
+  "#commandLineWrapper #commandLine .suggestions .entry",
+  (e) => {
+    if (!commandLineMouseMode) return;
+    $(e.target).removeClass("activeMouse");
+  }
+);
+
 $("#commandLineWrapper #commandLine .suggestions").on("mouseover", (e) => {
+  if (!commandLineMouseMode) return;
+  console.log("clearing keyboard active");
   $("#commandLineWrapper #commandLine .suggestions .entry").removeClass(
     "activeKeyboard"
   );
@@ -1988,6 +2017,7 @@ function triggerCommand(command) {
 }
 
 function hideCommandLine() {
+  previewFontFamily(config.fontFamily);
   $("#commandLineWrapper")
     .stop(true, true)
     .css("opacity", 1)
@@ -2067,7 +2097,8 @@ function updateSuggestedCommands() {
       let foundcount = 0;
       $.each(inputVal, (index2, obj2) => {
         if (obj2 == "") return;
-        let re = new RegExp("\\b" + obj2, "g");
+        let escaped = obj2.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        let re = new RegExp("\\b" + escaped, "g");
         let res = obj.display.toLowerCase().match(re);
         if (res != null && res.length > 0) {
           foundcount++;

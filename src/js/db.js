@@ -1,3 +1,5 @@
+import { loadTags } from "./result-filters";
+
 const db = firebase.firestore();
 db.settings({ experimentalForceLongPolling: true });
 
@@ -85,6 +87,7 @@ export async function db_getUserSnapshot() {
   } catch (e) {
     console.error(e);
   }
+  loadTags(dbSnapshot.tags);
   return dbSnapshot;
 }
 
@@ -270,8 +273,7 @@ export async function db_getLocalTagPB(tagId) {
   }
 
   let retval;
-  if (dbSnapshot == null) {
-  } else {
+  if (dbSnapshot != null) {
     retval = cont();
   }
   return retval;
@@ -286,8 +288,7 @@ export async function db_saveLocalTagPB(tagId, wpm) {
     });
   }
 
-  if (dbSnapshot == null) {
-  } else {
+  if (dbSnapshot != null) {
     cont();
   }
 }

@@ -1,5 +1,6 @@
 [
   "english"
+  ,"sysadmin"
   ,"english_1k"
   ,"english_10k"
   ,"spanish"
@@ -62,5 +63,5 @@
   ,"code_javascript"
   ,"code_html"
   ,"code_java"
-  ,"sysadmin"
+  ,"code_go"
 ]

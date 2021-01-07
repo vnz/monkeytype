@@ -226,30 +226,25 @@ function refreshThemeColorObject() {
 }
 
 function copyResultToClipboard() {
-  if (navigator.userAgent.toLowerCase().indexOf("firefox") > -1) {
-    Misc.showNotification(
-      "Sorry, this feature is not supported in Firefox",
-      4000
-    );
-  } else {
-    $(".pageTest .ssWatermark").removeClass("hidden");
-    $(".pageTest .buttons").addClass("hidden");
-    let src = $("#middle");
-    var sourceX = src.position().left; /*X position from div#target*/
-    var sourceY = src.position().top; /*Y position from div#target*/
-    var sourceWidth = src.width(); /*clientWidth/offsetWidth from div#target*/
-    var sourceHeight = src.height(); /*clientHeight/offsetHeight from div#target*/
-    $(".notification").addClass("hidden");
-    $(".pageTest .loginTip").addClass("hidden");
-    try {
-      html2canvas(document.body, {
-        backgroundColor: themeColors.bg,
-        height: sourceHeight + 50,
-        width: sourceWidth + 50,
-        x: sourceX - 25,
-        y: sourceY - 25,
-      }).then(function (canvas) {
-        canvas.toBlob(function (blob) {
+  $(".pageTest .ssWatermark").removeClass("hidden");
+  $(".pageTest .buttons").addClass("hidden");
+  let src = $("#middle");
+  var sourceX = src.position().left; /*X position from div#target*/
+  var sourceY = src.position().top; /*Y position from div#target*/
+  var sourceWidth = src.width(); /*clientWidth/offsetWidth from div#target*/
+  var sourceHeight = src.height(); /*clientHeight/offsetHeight from div#target*/
+  $(".notification").addClass("hidden");
+  $(".pageTest .loginTip").addClass("hidden");
+  try {
+    html2canvas(document.body, {
+      backgroundColor: themeColors.bg,
+      height: sourceHeight + 50,
+      width: sourceWidth + 50,
+      x: sourceX - 25,
+      y: sourceY - 25,
+    }).then(function (canvas) {
+      canvas.toBlob(function (blob) {
+        try {
           navigator.clipboard
             .write([
               new ClipboardItem(
@@ -268,6 +263,7 @@ function copyResultToClipboard() {
                 $(".pageTest .loginTip").removeClass("hidden");
             })
             .catch((f) => {
+              open(URL.createObjectURL(blob));
               $(".notification").removeClass("hidden");
               Misc.showNotification("Error saving image to clipboard", 2000);
               $(".pageTest .ssWatermark").addClass("hidden");
@@ -275,16 +271,24 @@ function copyResultToClipboard() {
               if (firebase.auth().currentUser == null)
                 $(".pageTest .loginTip").removeClass("hidden");
             });
-        });
+        } catch (e) {
+          open(URL.createObjectURL(blob));
+          $(".notification").removeClass("hidden");
+          Misc.showNotification("Error saving image to clipboard", 2000);
+          $(".pageTest .ssWatermark").addClass("hidden");
+          $(".pageTest .buttons").removeClass("hidden");
+          if (firebase.auth().currentUser == null)
+            $(".pageTest .loginTip").removeClass("hidden");
+        }
       });
-    } catch (e) {
-      $(".notification").removeClass("hidden");
-      Misc.showNotification("Error creating image", 2000);
-      $(".pageTest .ssWatermark").addClass("hidden");
-      $(".pageTest .buttons").removeClass("hidden");
-      if (firebase.auth().currentUser == null)
-        $(".pageTest .loginTip").removeClass("hidden");
-    }
+    });
+  } catch (e) {
+    $(".notification").removeClass("hidden");
+    Misc.showNotification("Error creating image", 2000);
+    $(".pageTest .ssWatermark").addClass("hidden");
+    $(".pageTest .buttons").removeClass("hidden");
+    if (firebase.auth().currentUser == null)
+      $(".pageTest .loginTip").removeClass("hidden");
   }
 }
 
@@ -333,7 +337,7 @@ async function activateFunbox(funbox, mode) {
       restartTest();
     }
 
-    if (funbox === "read_ahead") {
+    if (funbox === "read_ahead" || funbox === "read_ahead_easy") {
       setHighlightMode("letter", true);
       restartTest();
     }
@@ -446,9 +450,14 @@ async function initWords() {
         quotes.groups.forEach((qg, i) => {
           let lower = qg[0];
           let upper = qg[1];
-          quotes.groups[i] = quotes.quotes.filter(
-            (q) => q.length >= lower && q.length <= upper
-          );
+          quotes.groups[i] = quotes.quotes.filter((q) => {
+            if (q.length >= lower && q.length <= upper) {
+              q.group = i;
+              return true;
+            } else {
+              return false;
+            }
+          });
         });
         quotes.quotes = [];
       },
@@ -714,12 +723,13 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
   let word = currentWord;
 
   if (
-    index == 0 ||
-    Misc.getLastChar(previousWord) == "." ||
-    Misc.getLastChar(previousWord) == "?" ||
-    Misc.getLastChar(previousWord) == "!"
+    (index == 0 ||
+      Misc.getLastChar(previousWord) == "." ||
+      Misc.getLastChar(previousWord) == "?" ||
+      Misc.getLastChar(previousWord) == "!") &&
+    config.language.split("_")[0] != "code"
   ) {
-    //always capitalise the first word or if there was a dot
+    //always capitalise the first word or if there was a dot unless using a code alphabet
     word = Misc.capitalizeFirstLetter(word);
   } else if (
     (Math.random() < 0.1 &&
@@ -1300,7 +1310,11 @@ function stopCaretAnimation() {
 
 function startCaretAnimation() {
   if (caretAnimating === false) {
-    $("#caret").css("animation-name", "caretFlash");
+    if (config.smoothCaret) {
+      $("#caret").css("animation-name", "caretFlashSmooth");
+    } else {
+      $("#caret").css("animation-name", "caretFlashHard");
+    }
     caretAnimating = true;
   }
 }
@@ -1722,6 +1736,10 @@ function showResult(difficultyFailed = false) {
       correctSpaces: 0,
     };
   }
+  let inf = false;
+  if (stats.wpm >= 1000) {
+    inf = true;
+  }
   clearTimeout(timer);
   let testtime = stats.time;
   let afkseconds = keypressPerSecond.filter((x) => x.count == 0 && x.mod == 0)
@@ -1735,7 +1753,11 @@ function showResult(difficultyFailed = false) {
   if (config.alwaysShowDecimalPlaces) {
     if (config.alwaysShowCPM == false) {
       $("#result .stats .wpm .top .text").text("wpm");
-      $("#result .stats .wpm .bottom").text(Misc.roundTo2(stats.wpm));
+      if (inf) {
+        $("#result .stats .wpm .bottom").text("Infinite");
+      } else {
+        $("#result .stats .wpm .bottom").text(Misc.roundTo2(stats.wpm));
+      }
       $("#result .stats .raw .bottom").text(Misc.roundTo2(stats.wpmRaw));
       $("#result .stats .wpm .bottom").attr(
         "aria-label",
@@ -1743,7 +1765,11 @@ function showResult(difficultyFailed = false) {
       );
     } else {
       $("#result .stats .wpm .top .text").text("cpm");
-      $("#result .stats .wpm .bottom").text(Misc.roundTo2(stats.wpm * 5));
+      if (inf) {
+        $("#result .stats .wpm .bottom").text("Infinite");
+      } else {
+        $("#result .stats .wpm .bottom").text(Misc.roundTo2(stats.wpm * 5));
+      }
       $("#result .stats .raw .bottom").text(Misc.roundTo2(stats.wpmRaw * 5));
       $("#result .stats .wpm .bottom").attr(
         "aria-label",
@@ -1771,7 +1797,11 @@ function showResult(difficultyFailed = false) {
         "aria-label",
         stats.wpm + ` (${Misc.roundTo2(stats.wpm * 5)} cpm)`
       );
-      $("#result .stats .wpm .bottom").text(Math.round(stats.wpm));
+      if (inf) {
+        $("#result .stats .wpm .bottom").text("Infinite");
+      } else {
+        $("#result .stats .wpm .bottom").text(Math.round(stats.wpm));
+      }
       $("#result .stats .raw .bottom").text(Math.round(stats.wpmRaw));
       $("#result .stats .raw .bottom").attr("aria-label", stats.wpmRaw);
     } else {
@@ -1780,7 +1810,11 @@ function showResult(difficultyFailed = false) {
         "aria-label",
         Misc.roundTo2(stats.wpm * 5) + ` (${Misc.roundTo2(stats.wpm)} wpm)`
       );
-      $("#result .stats .wpm .bottom").text(Math.round(stats.wpm * 5));
+      if (inf) {
+        $("#result .stats .wpm .bottom").text("Infinite");
+      } else {
+        $("#result .stats .wpm .bottom").text(Math.round(stats.wpm * 5));
+      }
       $("#result .stats .raw .bottom").text(Math.round(stats.wpmRaw * 5));
       $("#result .stats .raw .bottom").attr("aria-label", stats.wpmRaw * 5);
     }
@@ -2013,6 +2047,11 @@ function showResult(difficultyFailed = false) {
       lang = "english";
     }
 
+    let quoteLength = -1;
+    if (config.mode === "quote") {
+      quoteLength = randomQuote.group;
+    }
+
     let completedEvent = {
       wpm: stats.wpm,
       rawWpm: stats.wpmRaw,
@@ -2022,6 +2061,7 @@ function showResult(difficultyFailed = false) {
       acc: stats.acc,
       mode: config.mode,
       mode2: mode2,
+      quoteLength: quoteLength,
       punctuation: config.punctuation,
       numbers: config.numbers,
       timestamp: Date.now(),
@@ -2385,18 +2425,18 @@ function showResult(difficultyFailed = false) {
                       globalLbString + "<br>" + dailyLbString
                     );
 
-                    CloudFunctions.saveLbMemory({
-                      uid: firebase.auth().currentUser.uid,
-                      obj: db_getSnapshot().lbMemory,
-                    }).then((d) => {
-                      if (d.data.returnCode === 1) {
-                      } else {
-                        Misc.showNotification(
-                          `Error saving lb memory ${d.data.message}`,
-                          4000
-                        );
-                      }
-                    });
+                    // CloudFunctions.saveLbMemory({
+                    //   uid: firebase.auth().currentUser.uid,
+                    //   obj: db_getSnapshot().lbMemory,
+                    // }).then((d) => {
+                    //   if (d.data.returnCode === 1) {
+                    //   } else {
+                    //     Misc.showNotification(
+                    //       `Error saving lb memory ${d.data.message}`,
+                    //       4000
+                    //     );
+                    //   }
+                    // });
                   }
                   if (
                     e.data.dailyLeaderboard === null &&
@@ -2592,6 +2632,9 @@ function showResult(difficultyFailed = false) {
 }
 
 function startTest() {
+  if (pageTransition) {
+    return;
+  }
   if (!dbConfigLoaded) {
     configChangedBeforeDb = true;
   }
@@ -2909,22 +2952,6 @@ function setCustomText() {
     setMode("time");
     customText = "The quick brown fox jumped over the lazy dog".split(" ");
   }
-}
-
-function cleanTypographySymbols(textToClean) {
-  var specials = {
-    "“": '"', // &ldquo;	&#8220;
-    "”": '"', // &rdquo;	&#8221;
-    "’": "'", // &lsquo;	&#8216;
-    "‘": "'", // &rsquo;	&#8217;
-    ",": ",", // &sbquo;	&#8218;
-    "—": "-", // &mdash;  &#8212;
-    "…": "...", // &hellip; &#8230;
-    "«": "<<",
-    "»": ">>",
-    "–": "-",
-  };
-  return textToClean.replace(/[“”’‘—,…«»–]/g, (char) => specials[char] || "");
 }
 
 function changePage(page) {
@@ -3815,8 +3842,10 @@ $("#customTextPopup .button").click(() => {
   text = text.replace(/[\n\r\t ]/gm, " ");
   text = text.replace(/ +/gm, " ");
   if ($("#customTextPopup .typographyCheck input").prop("checked")) {
-    text = cleanTypographySymbols(text);
+    text = Misc.cleanTypographySymbols(text);
   }
+  // text = Misc.remove_non_ascii(text);
+  text = text.replace(/[\u2060]/g, "");
   text = text.split(" ");
   customText = text;
   customTextIsRandom = $("#customTextPopup .check input").prop("checked");
@@ -4406,6 +4435,11 @@ $(document.body).on("click", "#supportMeWrapper a.button", () => {
     });
 });
 
+$(document.body).on("click", ".pageAbout .aboutEnableAds", () => {
+  currentCommands.push(commandsEnableAds);
+  showCommandLine();
+});
+
 $("#wordsInput").keypress((event) => {
   event.preventDefault();
 });
@@ -4938,8 +4972,7 @@ function handleAlpha(event) {
   if (/F\d+/.test(event.key)) return;
   if (/Numpad/.test(event.key)) return;
   if (/Volume/.test(event.key)) return;
-  if (event.ctrlKey) return;
-  if (event.altKey) return;
+  if (event.ctrlKey && !event.altKey) return;
   if (event.metaKey) return;
   event = emulateLayout(event);
 
