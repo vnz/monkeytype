@@ -1,0 +1,71 @@
+{
+  "language": "spanish",
+  "groups": [
+    [
+      0,
+      100
+    ],
+    [
+      101,
+      300
+    ],
+    [
+      301,
+      600
+    ],
+    [
+      601,
+      9999
+    ]
+  ],
+  "quotes": [
+    {
+      "text": "La muerte no existe, la gente solo muere cuando la olvidan; si puedes recordarme siempre estaré contigo.",
+      "source": "Isabel Allende, Eva Luna",
+      "length": 104,
+      "id": 1
+    },
+    {
+      "text": "Artículo 33.- Toda persona es igual ante la ley y no podrá practicarse discriminación alguna contraria a la dignidad humana.",
+      "source": "Constitucion Politica de Costa Rica.",
+      "length": 124,
+      "id": 2
+    },
+    {
+      "text": "En general, los hombres juzgan más por los ojos que por la inteligencia, pues todos pueden ver, pero pocos comprenden lo que ven.",
+      "source": "Nicolás Maquiavelo - El Príncipe",
+      "length": 130,
+      "id": 3
+    },
+    {
+      "text": "Tenía la idea de que al poner nombre a los problemas, éstos se materializan y ya no es posible ignorarlos; en cambio, si se mantienen en el limbo de las palabras no dichas, pueden desaparecer solos, con el transcurso del tiempo.",
+      "source": "Isabel Allende, La Casa de los Espíritus.",
+      "length": 228,
+      "id": 4
+    },
+    {
+      "text": "La soledad es un peligro para una mente en funcionamiento. Necesitamos rodearnos de personas que piensan y hablan. Cuando pasamos demasiado tiempo solos, poblamos el vacío con fantasmas. Lo dijo Maupassant, en \"Le Horla\"",
+      "source": "Lauren Groff, Florida",
+      "length": 220,
+      "id": 5
+    },
+    {
+      "text": "El bostezo imperceptible de las moscas y el estirón de las alas de la flota de zopilotes, no significaron novedad alguna para los buzos de la madrugada. Entre la llovizna persistente y los vapores de aquel mar sin devenir, los últimos camiones, ahora vacíos, se alejaban para comenzar otro día de recolección. Los buzos habían extraído varios cargamentos importantes de las profundidades de su mar muerto y antes de los que el turno del día llegaran a sumar sus brazadas, se apresuraban a seleccionar sus presas para la venta en las recicladoras de latas, botellas y papel, o en las fundidoras de metales más pesados.",
+      "source": "Fernando Contreras Castro, Única Mirando al Mar",
+      "length": 617,
+      "id": 6
+    },
+    {
+      "text": "El amor descubre matices invisibles para los ojos indiferentes y saca de ellos consecuencias infinitas.",
+      "source": "Stendhal (Marie-Henri Beyle), La cartuja de Parma",
+      "length": 103,
+      "id": 7
+    },
+    {
+      "text": "El ímpetu, producto de la masa por la velocidad de un cuerpo se conserva entre portales. Para los nuevos, si entras rápido sales rápido.",
+      "source": "Portal 1",
+      "length": 136,
+      "id": 8
+    }
+  ]
+}

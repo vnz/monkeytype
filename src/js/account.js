@@ -1,3 +1,7 @@
+import { db_updateName } from "./db";
+
+var gmailProvider = new firebase.auth.GoogleAuthProvider();
+
 function showSignOutButton() {
   $(".signOut").removeClass("hidden").css("opacity", 1);
 }
@@ -24,7 +28,7 @@ function signIn() {
             changePage("test");
           })
           .catch(function (error) {
-            Misc.showNotification(error.message, 5000);
+            Notifications.add(error.message, -1);
             $(".pageLogin .preloader").addClass("hidden");
           });
       });
@@ -41,11 +45,57 @@ function signIn() {
             changePage("test");
           })
           .catch(function (error) {
-            Misc.showNotification(error.message, 5000);
+            Notifications.add(error.message, -1);
             $(".pageLogin .preloader").addClass("hidden");
           });
       });
   }
+}
+
+async function signInWithGoogle() {
+  $(".pageLogin .preloader").removeClass("hidden");
+
+  if ($(".pageLogin .login #rememberMe input").prop("checked")) {
+    //remember me
+    await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    firebase
+      .auth()
+      .signInWithPopup(gmailProvider)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((error) => {
+        Notifications.add(error.message, -1);
+        $(".pageLogin .preloader").addClass("hidden");
+      });
+  } else {
+    //dont remember
+    await firebase
+      .auth()
+      .setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    firebase
+      .auth()
+      .signInWithPopup(gmailProvider)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((error) => {
+        Notifications.add(error.message, -1);
+        $(".pageLogin .preloader").addClass("hidden");
+      });
+  }
+}
+
+function linkWithGoogle() {
+  firebase
+    .auth()
+    .currentUser.linkWithPopup(gmailProvider)
+    .then(function (result) {
+      console.log(result);
+    })
+    .catch(function (error) {
+      console.log(error);
+    });
 }
 
 let dontCheckUserName = false;
@@ -59,27 +109,27 @@ function signUp() {
   let passwordVerify = $(".pageLogin .register input")[3].value;
 
   if (password != passwordVerify) {
-    Misc.showNotification("Passwords do not match", 3000);
+    Notifications.add("Passwords do not match", 0, 3);
     $(".pageLogin .preloader").addClass("hidden");
     $(".pageLogin .register .button").removeClass("disabled");
     return;
   }
 
   CloudFunctions.namecheck({ name: nname }).then((d) => {
-    if (d.data === -1) {
-      Misc.showNotification("Name unavailable", 3000);
+    if (d.data.resultCode === -1) {
+      Notifications.add("Name unavailable", -1);
       $(".pageLogin .preloader").addClass("hidden");
       $(".pageLogin .register .button").removeClass("disabled");
       return;
-    } else if (d.data === -2) {
-      Misc.showNotification(
+    } else if (d.data.resultCode === -2) {
+      Notifications.add(
         "Name cannot contain special characters or contain more than 14 characters. Can include _ . and -",
-        8000
+        -1
       );
       $(".pageLogin .preloader").addClass("hidden");
       $(".pageLogin .register .button").removeClass("disabled");
       return;
-    } else if (d.data === 1) {
+    } else if (d.data.resultCode === 1) {
       firebase
         .auth()
         .createUserWithEmailAndPassword(email, password)
@@ -106,7 +156,7 @@ function signUp() {
               );
               usr.sendEmailVerification();
               clearGlobalStats();
-              Misc.showNotification("Account created", 2000);
+              Notifications.add("Account created", 1, 3);
               $("#menu .icon-button.account .text").text(nname);
               try {
                 firebase.analytics().logEvent("accountCreated", usr.uid);
@@ -144,15 +194,19 @@ function signUp() {
                 .delete()
                 .then(function () {
                   // User deleted.
-                  Misc.showNotification(
-                    "An error occured. Account not created.",
-                    2000
+                  Notifications.add(
+                    "Account not created. " + error.message,
+                    -1
                   );
                   $(".pageLogin .preloader").addClass("hidden");
                 })
                 .catch(function (error) {
                   // An error happened.
                   $(".pageLogin .preloader").addClass("hidden");
+                  Notifications.add(
+                    "Something went wrong. " + error.message,
+                    -1
+                  );
                   console.error(error);
                 });
             });
@@ -160,10 +214,15 @@ function signUp() {
         .catch(function (error) {
           // Handle Errors here.
           $(".pageLogin .register .button").removeClass("disabled");
-          var errorMessage = error.message;
-          Misc.showNotification(errorMessage, 5000);
+          Notifications.add(error.message, -1);
           $(".pageLogin .preloader").addClass("hidden");
         });
+    } else {
+      $(".pageLogin .preloader").addClass("hidden");
+      Notifications.add(
+        "Something went wrong when checking name: " + d.data.message,
+        -1
+      );
     }
   });
 }
@@ -173,7 +232,7 @@ function signOut() {
     .auth()
     .signOut()
     .then(function () {
-      Misc.showNotification("Signed out", 2000);
+      Notifications.add("Signed out", 0, 2);
       clearGlobalStats();
       hideAccountSettingsSection();
       updateAccountLoginButton();
@@ -181,7 +240,7 @@ function signOut() {
       db_setSnapshot(null);
     })
     .catch(function (error) {
-      Misc.showNotification(error.message, 5000);
+      Notifications.add(error.message, -1);
     });
 }
 
@@ -221,13 +280,15 @@ firebase.auth().onAuthStateChanged(function (user) {
     $(".pageAccount .group.createdDate").text(text);
 
     if (verifyUserWhenLoggedIn !== null) {
-      Misc.showNotification("Verifying", 1000);
+      Notifications.add("Verifying", 0, 3);
       verifyUserWhenLoggedIn.uid = user.uid;
       CloudFunctions.verifyUser(verifyUserWhenLoggedIn).then((data) => {
-        Misc.showNotification(data.data.message, 3000);
         if (data.data.status === 1) {
+          Notifications.add(data.data.message, 1);
           db_getSnapshot().discordId = data.data.did;
           updateDiscordSettingsSection();
+        } else {
+          Notifications.add(data.data.message, -1);
         }
       });
     }
@@ -237,11 +298,11 @@ firebase.auth().onAuthStateChanged(function (user) {
     try {
       theme = theme.split(",");
       config.customThemeColors = theme;
-      Misc.showNotification("Custom theme applied.", 1000);
+      Notifications.add("Custom theme applied.", 1);
     } catch (e) {
-      Misc.showNotification(
+      Notifications.add(
         "Something went wrong. Reverting to default custom colors.",
-        3000
+        0
       );
       config.customThemeColors = defaultConfig.customThemeColors;
     }
@@ -259,9 +320,45 @@ firebase.auth().onAuthStateChanged(function (user) {
 
 function getAccountDataAndInit() {
   db_getUserSnapshot()
-    .then((e) => {
-      if (db_getSnapshot() === null) {
+    .then(async (e) => {
+      let snap = db_getSnapshot();
+      if (snap === null) {
         throw "Missing db snapshot. Client likely could not connect to the backend.";
+      }
+      let user = firebase.auth().currentUser;
+      if (snap.name === undefined) {
+        //verify username
+        if (Misc.isUsernameValid(user.displayName)) {
+          //valid, just update
+          snap.name = user.displayName;
+          db_setSnapshot(snap);
+          db_updateName(user.uid, user.displayName);
+        } else {
+          //invalid, get new
+          // Notifications.add("Invalid name", 0);
+          let promptVal = null;
+          let cdnVal = undefined;
+
+          while (
+            promptVal === null ||
+            cdnVal === undefined ||
+            cdnVal.data.status < 0
+          ) {
+            promptVal = prompt(
+              "Your name is either invalid or unavailable (you also need to do this if you used Google Sign Up). Please provide a new display name (cannot be longer than 14 characters, can only contain letters, numbers, underscores, dots and dashes):"
+            );
+            cdnVal = await CloudFunctions.changeDisplayName({
+              uid: user.uid,
+              name: promptVal,
+            });
+            if (cdnVal.data.status === 1) {
+              alert("Name updated", 1);
+              location.reload();
+            } else if (cdnVal.data.status < 0) {
+              alert(cdnVal.data.message, 0);
+            }
+          }
+        }
       }
       if (!configChangedBeforeDb) {
         if (cookieConfig === null) {
@@ -317,7 +414,7 @@ function getAccountDataAndInit() {
       } else {
         accountIconLoading(false);
       }
-      if (config.paceCaret === "pb") {
+      if (config.paceCaret === "pb" || config.paceCaret === "average") {
         if (!testActive) {
           initPaceCaret(true);
         }
@@ -352,7 +449,10 @@ function getAccountDataAndInit() {
       // ) {
       //   config.resultFilters.funbox = defaultAccountFilters.funbox;
       // }
-      if ($(".pageLogin").hasClass("active")) {
+      if (
+        $(".pageLogin").hasClass("active") ||
+        window.location.pathname === "/account"
+      ) {
         changePage("account");
       }
       refreshThemeButtons();
@@ -366,9 +466,9 @@ function getAccountDataAndInit() {
     .catch((e) => {
       accountIconLoading(false);
       console.error(e);
-      Misc.showNotification(
-        "Error downloading user data. Refresh to try again. If error persists contact Miodec.",
-        5000
+      Notifications.add(
+        "Error downloading user data - refresh to try again. Client likely could not connect to the backend, if error persists contact Miodec.",
+        -1
       );
       $("#top #menu .account .icon").html('<i class="fas fa-fw fa-times"></i>');
       $("#top #menu .account").css("opacity", 1);
@@ -1004,9 +1104,9 @@ function toggleFilter(group, filter) {
     ResultFilters.toggleFilter(group, filter);
     ResultFilters.save();
   } catch (e) {
-    Misc.showNotification(
+    Notifications.add(
       "Something went wrong toggling filter. Reverting to defaults",
-      3000
+      0
     );
     console.log("toggling filter error");
     console.error(e);
@@ -1851,9 +1951,9 @@ function refreshAccountPage() {
 
         filteredResults.push(result);
       } catch (e) {
-        Misc.showNotification(
+        Notifications.add(
           "Something went wrong when filtering. Resetting filters.",
-          5000
+          0
         );
         console.log(result);
         console.error(e);
@@ -2206,7 +2306,7 @@ function refreshAccountPage() {
     swapElements($(".pageAccount .preloader"), $(".pageAccount .content"), 250);
   }
   if (db_getSnapshot() === null) {
-    Misc.showNotification(`Missing account data. Please refresh.`, 5000);
+    Notifications.add(`Missing account data. Please refresh.`, -1);
     $(".pageAccount .preloader").html("Missing account data. Please refresh.");
   } else if (db_getSnapshot().results === undefined) {
     db_getUserResults().then((d) => {
@@ -2224,7 +2324,7 @@ function refreshAccountPage() {
       cont();
     } catch (e) {
       console.error(e);
-      Misc.showNotification(`Something went wrong: ${e}`, 5000);
+      Notifications.add(`Something went wrong: ${e}`, -1);
     }
   }
 }
@@ -2326,7 +2426,7 @@ $("#resultEditTagsPanel .confirmButton").click((f) => {
   }).then((r) => {
     hideBackgroundLoader();
     if (r.data.resultCode === 1) {
-      Misc.showNotification("Tags updated.", 3000);
+      Notifications.add("Tags updated.", 1, 2);
       db_getSnapshot().results.forEach((result) => {
         if (result.id === resultid) {
           result.tags = newtags;
@@ -2377,7 +2477,7 @@ $("#resultEditTagsPanel .confirmButton").click((f) => {
         );
       }
     } else {
-      Misc.showNotification("Error updating tags", 3000);
+      Notifications.add("Error updating tags: " + r.data.message, -1);
     }
   });
 });
@@ -2404,9 +2504,14 @@ $(".pageLogin .login input").keyup((e) => {
   }
 });
 
-$(".pageLogin .login .button").click((e) => {
+$(".pageLogin .login .button.signIn").click((e) => {
   configChangedBeforeDb = false;
   signIn();
+});
+
+$(".pageLogin .login .button.signInWithGoogle").click((e) => {
+  configChangedBeforeDb = false;
+  signInWithGoogle();
 });
 
 $(".signOut").click((e) => {
@@ -2425,11 +2530,11 @@ $(".pageLogin #forgotPasswordButton").click((e) => {
       .sendPasswordResetEmail(email)
       .then(function () {
         // Email sent.
-        Misc.showNotification("Email sent", 2000);
+        Notifications.add("Email sent", 1, 2);
       })
       .catch(function (error) {
         // An error happened.
-        Misc.showNotification(error.message, 5000);
+        Notifications.add(error.message, -1);
       });
   }
 });

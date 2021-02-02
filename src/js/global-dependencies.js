@@ -14,6 +14,7 @@ import {
   db_getUserResults,
   db_getUserHighestWpm,
   db_getLocalPB,
+  db_getUserAverageWpm10,
   db_saveLocalPB,
   db_getLocalTagPB,
   db_saveLocalTagPB,
@@ -24,4 +25,5 @@ import * as Misc from "./misc";
 import * as CloudFunctions from "./cloud-functions";
 import layouts from "./layouts";
 import * as Monkey from "./monkey";
+import * as Notifications from "./notification-center";
 import * as ResultFilters from "./result-filters";

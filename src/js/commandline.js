@@ -1,11 +1,15 @@
 function canBailOut() {
   return (
     (config.mode === "custom" &&
-      customTextIsRandom &&
-      customTextWordCount >= 5000) ||
+      customText.isWordRandom &&
+      customText.word >= 5000) ||
     (config.mode === "custom" &&
-      !customTextIsRandom &&
-      customText.length >= 5000) ||
+      !customText.isWordRandom &&
+      !customText.isTimeRandom &&
+      customText.text.length >= 5000) ||
+    (config.mode === "custom" &&
+      customText.isTimeRandom &&
+      customText.time >= 3600) ||
     (config.mode === "words" && config.words >= 5000) ||
     config.words === 0 ||
     (config.mode === "time" && (config.time >= 3600 || config.time === 0))
@@ -880,7 +884,7 @@ let commandsEnableAds = {
       display: "off",
       exec: () => {
         setEnableAds("off");
-        Misc.showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
     {
@@ -888,7 +892,7 @@ let commandsEnableAds = {
       display: "on",
       exec: () => {
         setEnableAds("on");
-        Misc.showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
     {
@@ -896,7 +900,7 @@ let commandsEnableAds = {
       display: "Sellout",
       exec: () => {
         setEnableAds("max");
-        Misc.showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
   ],
@@ -999,6 +1003,13 @@ let commandsPaceCaret = {
       display: "pb",
       exec: () => {
         setPaceCaret("pb");
+      },
+    },
+    {
+      id: "setPaceCaretAverage",
+      display: "average",
+      exec: () => {
+        setPaceCaret("average");
       },
     },
     {
@@ -1762,7 +1773,14 @@ $("#commandLine input").keyup((e) => {
   $("#commandLineWrapper #commandLine .suggestions .entry").removeClass(
     "activeMouse"
   );
-  if (e.keyCode == 38 || e.keyCode == 40 || e.keyCode == 13 || e.code == "Tab")
+  if (
+    e.keyCode == 38 ||
+    e.keyCode == 40 ||
+    e.keyCode == 13 ||
+    e.code == "Tab" ||
+    e.code == "AltLeft" ||
+    (e.altKey && (e.keyCode == 74 || e.keyCode == 75))
+  )
     return;
   updateSuggestedCommands();
 });
@@ -1776,28 +1794,25 @@ $(document).ready((e) => {
         //maybe add more condition for closing other dialogs in the future as well
         event.preventDefault();
         hideLeaderboards();
-        return;
-      } else if (event.keyCode == 9 || !config.swapEscAndTab) {
-        if ($("#commandLineWrapper").hasClass("hidden")) {
-          if (config.singleListCommandLine == "on")
-            useSingleListCommandLine(false);
-          else currentCommands = [commands];
+      } else if (!$("#commandLineWrapper").hasClass("hidden")) {
+        if (currentCommands.length > 1) {
+          currentCommands.pop();
+          $("#commandLine").removeClass("allCommands");
           showCommandLine();
         } else {
-          if (currentCommands.length > 1) {
-            currentCommands.pop();
-            $("#commandLine").removeClass("allCommands");
-            showCommandLine();
-          } else {
-            hideCommandLine();
-          }
-          setFontFamily(config.fontFamily, true);
-          if (config.customTheme === true) {
-            applyCustomThemeColors();
-          } else {
-            setTheme(config.theme);
-          }
+          hideCommandLine();
         }
+        setFontFamily(config.fontFamily, true);
+        if (config.customTheme === true) {
+          applyCustomThemeColors();
+        } else {
+          setTheme(config.theme);
+        }
+      } else if (event.keyCode == 9 || !config.swapEscAndTab) {
+        if (config.singleListCommandLine == "on")
+          useSingleListCommandLine(false);
+        else currentCommands = [commands];
+        showCommandLine();
       }
     }
   });
@@ -1862,7 +1877,8 @@ $("#commandLineWrapper #commandLine .suggestions").on("mouseover", (e) => {
     "activeKeyboard"
   );
   if (isPreviewingTheme) {
-    previewTheme(config.theme, false);
+    applyCustomThemeColors();
+    // previewTheme(config.theme, false);
   }
   let hoverId = $(e.target).attr("command");
   try {
@@ -1894,7 +1910,9 @@ $("#commandLineWrapper").click((e) => {
 
 $(document).keydown((e) => {
   if (isPreviewingTheme) {
-    previewTheme(config.theme, false);
+    console.log("applying theme");
+    applyCustomThemeColors();
+    // previewTheme(config.theme, false);
   }
   if (!$("#commandLineWrapper").hasClass("hidden")) {
     $("#commandLine input").focus();
@@ -1922,7 +1940,12 @@ $(document).keydown((e) => {
       triggerCommand(command);
       return;
     }
-    if (e.keyCode == 38 || e.keyCode == 40 || e.code == "Tab") {
+    if (
+      e.keyCode == 38 ||
+      e.keyCode == 40 ||
+      e.code == "Tab" ||
+      (e.altKey && (e.keyCode == 74 || e.keyCode == 75))
+    ) {
       e.preventDefault();
       $("#commandLineWrapper #commandLine .suggestions .entry").unbind(
         "mouseenter mouseleave"
@@ -1933,7 +1956,11 @@ $(document).keydown((e) => {
       $.each(entries, (index, obj) => {
         if ($(obj).hasClass("activeKeyboard")) activenum = index;
       });
-      if (e.keyCode == 38 || (e.code == "Tab" && e.shiftKey)) {
+      if (
+        e.keyCode == 38 ||
+        (e.code == "Tab" && e.shiftKey) ||
+        (e.altKey && e.keyCode == 75)
+      ) {
         entries.removeClass("activeKeyboard");
         if (activenum == 0) {
           $(entries[entries.length - 1]).addClass("activeKeyboard");
@@ -1943,7 +1970,11 @@ $(document).keydown((e) => {
           hoverId = $(entries[activenum]).attr("command");
         }
       }
-      if (e.keyCode == 40 || (e.code == "Tab" && !e.shiftKey)) {
+      if (
+        e.keyCode == 40 ||
+        (e.code == "Tab" && !e.shiftKey) ||
+        (e.altKey && e.keyCode == 74)
+      ) {
         entries.removeClass("activeKeyboard");
         if (activenum + 1 == entries.length) {
           $(entries[0]).addClass("activeKeyboard");
@@ -2018,6 +2049,7 @@ function triggerCommand(command) {
 
 function hideCommandLine() {
   previewFontFamily(config.fontFamily);
+  applyCustomThemeColors();
   $("#commandLineWrapper")
     .stop(true, true)
     .css("opacity", 1)
