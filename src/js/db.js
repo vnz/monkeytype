@@ -26,6 +26,7 @@ export async function db_getUserSnapshot() {
     name: undefined,
     tags: [],
     favouriteThemes: [],
+    refactored: false,
     lbMemory: {
       time15: {
         global: null,
@@ -85,6 +86,7 @@ export async function db_getUserSnapshot() {
         snap.config = data.config;
         snap.favouriteThemes =
           data.favouriteThemes === undefined ? [] : data.favouriteThemes;
+        snap.refactored = data.refactored === true ? true : false;
         snap.globalStats = {
           time: data.timeTyping,
           started: data.startedTests,
@@ -128,6 +130,15 @@ export async function db_getUserResults() {
           data.docs.forEach((doc) => {
             let result = doc.data();
             result.id = doc.id;
+
+            if (result.bailedOut === undefined) result.bailedOut = false;
+            if (result.blindMode === undefined) result.blindMode = false;
+            if (result.difficulty === undefined) result.difficulty = "normal";
+            if (result.funbox === undefined) result.funbox = "none";
+            if (result.language === undefined) result.language = "english";
+            if (result.numbers === undefined) result.numbers = false;
+            if (result.punctuation === undefined) result.punctuation = false;
+
             dbSnapshot.results.push(result);
           });
           return true;
@@ -263,6 +274,7 @@ export async function db_saveLocalPB(
   raw,
   consistency
 ) {
+  if (mode == "quote") return;
   function cont() {
     try {
       let found = false;
@@ -367,6 +379,7 @@ export async function db_saveLocalTagPB(
   raw,
   consistency
 ) {
+  if (mode == "quote") return;
   function cont() {
     let filteredtag = dbSnapshot.tags.filter((t) => t.id === tagId)[0];
     try {

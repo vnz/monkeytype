@@ -182,7 +182,7 @@
   {
     "name": "gruvbox_light",
     "bgColor": "#fbf1c7",
-    "textColor": "#458588"
+    "textColor": "#3c3836"
   },
   {
     "name": "monokai",
@@ -488,5 +488,25 @@
     "name": "arch",
     "bgColor": "#0c0d11",
     "textColor": "#f6f5f5"
+  },
+    {
+    "name": "rose_pine",
+    "bgColor": "#1f1d27",
+    "textColor": "#e0def4"
+  },
+    {
+    "name": "rose_pine_moon",
+    "bgColor": "#2a273f",
+    "textColor": "#e0def4"
+  },
+    {
+    "name": "rose_pine_dawn",
+    "bgColor": "#fffaf3",
+    "textColor": "#575279"
+  },
+  {
+    "name": "copper",
+    "bgColor": "#442f29",
+    "textColor": "#e7e0de"
   }
 ]

@@ -407,8 +407,76 @@ exports.checkNameAvailability = functions.https.onRequest(
 //   }
 // );
 
+exports.removeSmallTestsAndQPB = functions.https.onCall(
+  async (request, response) => {
+    let uid = request.uid;
+
+    try {
+      let docs = await db
+        .collection(`users/${uid}/results`)
+        .where("mode", "==", "time")
+        .where("mode2", "<", 15)
+        .get();
+      docs.forEach(async (doc) => {
+        db.collection(`users/${uid}/results`).doc(doc.id).delete();
+      });
+      let docs2 = await db
+        .collection(`users/${uid}/results`)
+        .where("mode", "==", "words")
+        .where("mode2", "<", 10)
+        .get();
+      docs2.forEach(async (doc) => {
+        db.collection(`users/${uid}/results`).doc(doc.id).delete();
+      });
+      let docs3 = await db
+        .collection(`users/${uid}/results`)
+        .where("mode", "==", "custom")
+        .where("testDuration", "<", 10)
+        .get();
+      docs3.forEach(async (doc) => {
+        db.collection(`users/${uid}/results`).doc(doc.id).delete();
+      });
+      // console.log(`removing small tests for ${uid}: ${docs.size} time, ${docs2.size} words, ${docs3.size} custom`);
+      let userdata = await db.collection(`users`).doc(uid).get();
+      userdata = userdata.data();
+      try {
+        pbs = userdata.personalBests;
+        // console.log(`removing ${Object.keys(pbs.quote).length} quote pb`);
+        delete pbs.quote;
+        await db.collection("users").doc(uid).update({ personalBests: pbs });
+      } catch {}
+      db.collection("users")
+        .doc(uid)
+        .set({ refactored: true }, { merge: true });
+      console.log("removed small tests for " + uid);
+    } catch (e) {
+      console.log(`something went wrong for ${uid}: ${e.message}`);
+    }
+  }
+);
+
+exports.resetPersonalBests = functions.https.onCall(
+  async (request, response) => {
+    let uid = request.uid;
+
+    try {
+      var user = await db.collection("users").doc(uid);
+      await user.update({ personalBests: {} });
+      return true;
+    } catch (e) {
+      console.log(
+        `something went wrong when deleting personal bests for ${uid}: ${e.message}`
+      );
+      return false;
+    }
+  }
+);
+
 function checkIfPB(uid, obj, userdata) {
   let pbs = null;
+  if (obj.mode == "quote") {
+    return false;
+  }
   if (obj.funbox !== "none") {
     return false;
   }
@@ -541,6 +609,9 @@ function checkIfPB(uid, obj, userdata) {
 
 async function checkIfTagPB(uid, obj, userdata) {
   if (obj.tags.length === 0) {
+    return [];
+  }
+  if (obj.mode == "quote") {
     return [];
   }
   let dbtags = [];
@@ -795,6 +866,12 @@ function validateResult(result) {
     }
   }
 
+  if (result.chartData.wpm !== undefined) {
+    if (result.chartData.wpm.filter((w) => w > 400).length > 0) return false;
+  }
+
+  if (result.consistency < 10) return false;
+
   return true;
 }
 
@@ -867,6 +944,21 @@ exports.verifyUser = functions.https.onRequest(async (request, response) => {
       .then((res) => res.json())
       .then(async (res2) => {
         let did = res2.id;
+
+        if (
+          (await db.collection("users").where("discordId", "==", did).get())
+            .docs.length > 0
+        ) {
+          response.status(200).send({
+            data: {
+              status: -1,
+              message:
+                "This Discord account is already paired to a different Monkeytype account",
+            },
+          });
+          return;
+        }
+
         await db.collection("users").doc(request.uid).update({
           discordId: did,
         });
@@ -1238,7 +1330,8 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
 
     function verifyValue(val) {
       let errCount = 0;
-      if (Array.isArray(val)) {
+      if (val === null || val === undefined) {
+      } else if (Array.isArray(val)) {
         //array
         val.forEach((val2) => {
           errCount += verifyValue(val2);
@@ -1254,8 +1347,6 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
       return errCount;
     }
     let errCount = verifyValue(obj);
-
-    // console.log(errCount);
     if (errCount > 0) {
       console.error(
         `error saving result for ${
@@ -1274,6 +1365,32 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
       obj.consistency > 100
     ) {
       response.status(200).send({ data: { resultCode: -1 } });
+      return;
+    }
+    if (
+      (obj.mode === "time" && obj.mode2 < 15 && obj.mode2 > 0) ||
+      (obj.mode === "time" && obj.mode2 == 0 && obj.testDuration < 15) ||
+      (obj.mode === "words" && obj.mode2 < 10 && obj.mode2 > 0) ||
+      (obj.mode === "words" && obj.mode2 == 0 && obj.testDuration < 15) ||
+      (obj.mode === "custom" &&
+        obj.customText !== undefined &&
+        !obj.customText.isWordRandom &&
+        !obj.customText.isTimeRandom &&
+        obj.customText.textLen < 10) ||
+      (obj.mode === "custom" &&
+        obj.customText !== undefined &&
+        obj.customText.isWordRandom &&
+        !obj.customText.isTimeRandom &&
+        obj.customText.word < 10) ||
+      (obj.mode === "custom" &&
+        obj.customText !== undefined &&
+        !obj.customText.isWordRandom &&
+        obj.customText.isTimeRandom &&
+        obj.customText.time < 15)
+    ) {
+      response
+        .status(200)
+        .send({ data: { resultCode: -5, message: "Test too short" } });
       return;
     }
     if (!validateResult(obj)) {
@@ -1421,14 +1538,14 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
           ),
           checkIfPB(request.uid, request.obj, userdata),
           checkIfTagPB(request.uid, request.obj),
-          db.collection(`users/${request.uid}/results`).add(obj),
         ])
           .then(async (values) => {
             let globallb = values[0].insertedAt;
             let dailylb = values[1].insertedAt;
             let ispb = values[2];
             let tagPbs = values[3];
-            let createdDocId = values[4].id;
+            let createdDocId = await stripAndSave(request.uid, request.obj);
+            createdDocId = createdDocId.id;
             // console.log(values);
 
             if (obj.mode === "time" && String(obj.mode2) === "60") {
@@ -1582,6 +1699,18 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
     return;
   }
 });
+
+async function stripAndSave(uid, obj) {
+  if (obj.bailedOut === false) delete obj.bailedOut;
+  if (obj.blindMode === false) delete obj.blindMode;
+  if (obj.difficulty === "normal") delete obj.difficulty;
+  if (obj.funbox === "none") delete obj.funbox;
+  if (obj.language === "english") delete obj.language;
+  if (obj.numbers === false) delete obj.numbers;
+  if (obj.punctuation === false) delete obj.punctuation;
+
+  return await db.collection(`users/${uid}/results`).add(obj);
+}
 
 exports.updateEmail = functions.https.onCall(async (request, response) => {
   try {
@@ -1914,6 +2043,9 @@ class Leaderboard {
             wpm: parseFloat(entry.wpm),
             raw: parseFloat(entry.raw),
             acc: parseFloat(entry.acc),
+            consistency: isNaN(parseInt(entry.consistency))
+              ? "-"
+              : parseInt(entry.consistency),
             mode: entry.mode,
             mode2: parseInt(entry.mode2),
             timestamp: entry.timestamp,
@@ -1990,6 +2122,9 @@ class Leaderboard {
                 wpm: parseFloat(a.wpm),
                 raw: parseFloat(a.rawWpm),
                 acc: parseFloat(a.acc),
+                consistency: isNaN(parseInt(a.consistency))
+                  ? "-"
+                  : parseInt(a.consistency),
                 mode: a.mode,
                 mode2: parseInt(a.mode2),
                 timestamp: a.timestamp,
@@ -2005,6 +2140,9 @@ class Leaderboard {
                 wpm: parseFloat(a.wpm),
                 raw: parseFloat(a.rawWpm),
                 acc: parseFloat(a.acc),
+                consistency: isNaN(parseInt(a.consistency))
+                  ? "-"
+                  : parseInt(a.consistency),
                 mode: a.mode,
                 mode2: parseInt(a.mode2),
                 timestamp: a.timestamp,
@@ -2021,6 +2159,9 @@ class Leaderboard {
               wpm: parseFloat(a.wpm),
               raw: parseFloat(a.rawWpm),
               acc: parseFloat(a.acc),
+              consistency: isNaN(parseInt(a.consistency))
+                ? "-"
+                : parseInt(a.consistency),
               mode: a.mode,
               mode2: parseInt(a.mode2),
               timestamp: a.timestamp,
@@ -2037,6 +2178,9 @@ class Leaderboard {
           wpm: parseFloat(a.wpm),
           raw: parseFloat(a.rawWpm),
           acc: parseFloat(a.acc),
+          consistency: isNaN(parseInt(a.consistency))
+            ? "-"
+            : parseInt(a.consistency),
           mode: a.mode,
           mode2: parseInt(a.mode2),
           timestamp: a.timestamp,

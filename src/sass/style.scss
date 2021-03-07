@@ -254,6 +254,14 @@ a:hover {
       margin-bottom: 2rem;
       font-size: 0.8rem;
 
+      .sub {
+        opacity: 0.5;
+      }
+
+      .alignRight {
+        text-align: right;
+      }
+
       .titleAndTable {
         display: grid;
 
@@ -287,7 +295,7 @@ a:hover {
         }
 
         td {
-          padding: 0.25rem 0.5rem;
+          padding: 0.5rem 0.5rem;
 
           &.me {
             color: var(--main-color);
@@ -305,6 +313,7 @@ a:hover {
             position: -webkit-sticky;
             position: sticky;
             top: 0;
+            z-index: 99;
           }
         }
 
@@ -325,6 +334,15 @@ a:hover {
             background: var(--bg-color);
             color: var(--sub-color);
             z-index: 4;
+          }
+        }
+
+        tr {
+          td:first-child {
+            padding-left: 1rem;
+          }
+          td:last-child {
+            padding-right: 1rem;
           }
         }
       }
@@ -1136,6 +1154,7 @@ a:hover {
 
   &.outline {
     @extend #caret, .block;
+    animation-name: none;
     background: transparent;
     border: 1px solid var(--caret-color);
   }
@@ -1320,7 +1339,8 @@ a:hover {
     grid-area: config;
     justify-self: right;
     display: grid;
-    grid-auto-flow: row;
+    // grid-auto-flow: row;
+    grid-template-rows: 1fr 1fr 1fr;
     grid-gap: 0.2rem;
     // width: min-content;
     // width: -moz-min-content;
@@ -1342,6 +1362,10 @@ a:hover {
         font-size: 0.7rem;
         line-height: 0.7rem;
         display: flex;
+      }
+      &.disabled {
+        pointer-events: none;
+        opacity: 0.25;
       }
     }
 
@@ -1809,9 +1833,11 @@ key {
 
   /* a little hack for right-to-left languages */
   &.rightToLeftTest {
-    flex-direction: row-reverse;
+    //flex-direction: row-reverse; // no need for hacking 😉, CSS fully support right-to-left languages
+    direction: rtl;
     .word {
-      flex-direction: row-reverse;
+      //flex-direction: row-reverse;
+      direction: rtl;
     }
   }
   &.withLigatures {
@@ -2607,6 +2633,7 @@ key {
 
     &.themes,
     &.language,
+    &.languageGroups,
     &.layout,
     &.keymapLayout,
     &.fontFamily,
@@ -3385,6 +3412,9 @@ key {
   width: 308px;
   height: 0;
   margin: 0 auto;
+  animation: shake;
+  animation-duration: 0s;
+  animation-iteration-count: infinite;
   div {
     height: 200px;
     width: 308px;
@@ -3401,6 +3431,32 @@ key {
   }
   .both {
     background-image: url("../m4.png");
+  }
+  .fast {
+    .up {
+      background-image: url("../m3_fast.png");
+    }
+    .left {
+      background-image: url("../m1_fast.png");
+    }
+    .right {
+      background-image: url("../m2_fast.png");
+    }
+    .both {
+      background-image: url("../m4_fast.png");
+    }
+  }
+}
+
+@keyframes shake {
+  0% {
+    transform: translate(4px, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(-4px, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(4px, 0) rotate(0deg);
   }
 }
 

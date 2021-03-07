@@ -74,6 +74,8 @@ let defaultConfig = {
   minAcc: "off",
   minAccCustom: 90,
   showLiveAcc: false,
+  monkey: false,
+  repeatQuotes: "off",
 };
 
 let cookieConfig = null;
@@ -398,6 +400,10 @@ function setPaceCaret(val, nosave) {
   if (val == undefined) {
     val = "off";
   }
+  // if (config.mode === "zen" && val != "off") {
+  //   Notifications.add(`Can't use pace caret with zen mode.`, 0);
+  //   val = "off";
+  // }
   config.paceCaret = val;
   updateTestModesNotice();
   initPaceCaret(nosave);
@@ -518,6 +524,14 @@ function setEnableAds(val, nosave) {
     val = "off";
   }
   config.enableAds = val;
+  if (!nosave) saveConfigToCookie();
+}
+
+function setRepeatQuotes(val, nosave) {
+  if (val == undefined || val === true || val === false) {
+    val = "off";
+  }
+  config.repeatQuotes = val;
   if (!nosave) saveConfigToCookie();
 }
 
@@ -909,6 +923,9 @@ function toggleQuickTabMode() {
 
 //numbers
 function setNumbers(numb, nosave) {
+  if (config.mode === "quote") {
+    numb = false;
+  }
   config.numbers = numb;
   if (!config.numbers) {
     $("#top .config .numbersMode .text-button").removeClass("active");
@@ -919,17 +936,23 @@ function setNumbers(numb, nosave) {
 }
 
 function toggleNumbers() {
-  if (config.numbers) {
-    $("#top .config .numbersMode .text-button").removeClass("active");
-  } else {
-    $("#top .config .numbersMode .text-button").addClass("active");
-  }
   config.numbers = !config.numbers;
+  if (config.mode === "quote") {
+    config.numbers = false;
+  }
+  if (config.numbers) {
+    $("#top .config .numbersMode .text-button").addClass("active");
+  } else {
+    $("#top .config .numbersMode .text-button").removeClass("active");
+  }
   saveConfigToCookie();
 }
 
 //punctuation
 function setPunctuation(punc, nosave) {
+  if (config.mode === "quote") {
+    punc = false;
+  }
   config.punctuation = punc;
   if (!config.punctuation) {
     $("#top .config .punctuationMode .text-button").removeClass("active");
@@ -940,12 +963,15 @@ function setPunctuation(punc, nosave) {
 }
 
 function togglePunctuation() {
-  if (config.punctuation) {
-    $("#top .config .punctuationMode .text-button").removeClass("active");
-  } else {
-    $("#top .config .punctuationMode .text-button").addClass("active");
-  }
   config.punctuation = !config.punctuation;
+  if (config.mode === "quote") {
+    config.punctuation = false;
+  }
+  if (config.punctuation) {
+    $("#top .config .punctuationMode .text-button").addClass("active");
+  } else {
+    $("#top .config .punctuationMode .text-button").removeClass("active");
+  }
   saveConfigToCookie();
 }
 
@@ -958,11 +984,12 @@ function previewFontFamily(font) {
 
 //font family
 function setFontFamily(font, nosave) {
-  if (font == undefined) {
+  if (font == undefined || font === "") {
     font = "Roboto_Mono";
   }
   config.fontFamily = font;
   document.documentElement.style.setProperty("--font", font.replace(/_/g, " "));
+  Chart.defaults.global.defaultFontFamily = font.replace(/_/g, " ");
   if (!nosave) saveConfigToCookie();
 }
 
@@ -1272,6 +1299,29 @@ function setLanguage(language, nosave) {
   if (!nosave) saveConfigToCookie();
 }
 
+function toggleMonkey(nosave) {
+  config.monkey = !config.monkey;
+  if (config.monkey) {
+    $("#monkey").removeClass("hidden");
+  } else {
+    $("#monkey").addClass("hidden");
+  }
+  if (!nosave) saveConfigToCookie();
+}
+
+function setMonkey(monkey, nosave) {
+  if (monkey === null || monkey === undefined) {
+    monkey = false;
+  }
+  config.monkey = monkey;
+  if (config.monkey) {
+    $("#monkey").removeClass("hidden");
+  } else {
+    $("#monkey").addClass("hidden");
+  }
+  if (!nosave) saveConfigToCookie();
+}
+
 function setCapsLockBackspace(capsLockBackspace, nosave) {
   if (capsLockBackspace === null || capsLockBackspace === undefined) {
     capsLockBackspace = false;
@@ -1479,7 +1529,7 @@ function setFontSize(fontSize, nosave) {
 
 function applyConfig(configObj) {
   if (configObj == null || configObj == undefined) {
-    Notifications.add("Could not apply config", -1);
+    Notifications.add("Could not apply config", -1, 3);
     return;
   }
   Object.keys(defaultConfig).forEach((configKey) => {
@@ -1550,6 +1600,9 @@ function applyConfig(configObj) {
     setStartGraphsAtZero(configObj.startGraphsAtZero, true);
     setStrictSpace(configObj.strictSpace, true);
     setMode(configObj.mode, true);
+    setMonkey(configObj.monkey, true);
+
+    setActiveLanguageGroup();
 
     try {
       setEnableAds(configObj.enableAds, true);

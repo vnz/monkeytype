@@ -132,6 +132,31 @@ export async function getLanguageList() {
   }
 }
 
+let languageGroupList = null;
+export async function getLanguageGroups() {
+  if (languageGroupList == null) {
+    return $.getJSON("languages/_groups.json", function (data) {
+      languageGroupList = data;
+      return languageGroupList;
+    });
+  } else {
+    return languageGroupList;
+  }
+}
+
+export async function findCurrentGroup(language) {
+  let retgroup = undefined;
+  let groups = await getLanguageGroups();
+  groups.forEach((group) => {
+    if (retgroup === undefined) {
+      if (group.languages.includes(language)) {
+        retgroup = group;
+      }
+    }
+  });
+  return retgroup;
+}
+
 let challengeList = null;
 export async function getChallengeList() {
   if (challengeList == null) {
@@ -574,4 +599,40 @@ export function isUsernameValid(name) {
   if (name.length > 14) return false;
   if (/^\..*/.test(name.toLowerCase())) return false;
   return /^[0-9a-zA-Z_.-]+$/.test(name);
+}
+
+export function mapRange(x, in_min, in_max, out_min, out_max) {
+  let num = ((x - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min;
+
+  if (out_min > out_max) {
+    if (num > out_min) {
+      num = out_min;
+    } else if (num < out_max) {
+      num = out_max;
+    }
+  } else {
+    if (num < out_min) {
+      num = out_min;
+    } else if (num > out_max) {
+      num = out_max;
+    }
+  }
+  return num;
+}
+
+export function canQuickRestart(mode, words, time, customText) {
+  if (
+    (mode === "words" && words < 1000) ||
+    (mode === "time" && time < 3600) ||
+    mode === "quote" ||
+    (mode === "custom" && customText.isWordRandom && customText.word < 1000) ||
+    (mode === "custom" && customText.isTimeRandom && customText.time < 3600) ||
+    (mode === "custom" &&
+      !customText.isWordRandom &&
+      customText.text.length < 1000)
+  ) {
+    return true;
+  } else {
+    return false;
+  }
 }

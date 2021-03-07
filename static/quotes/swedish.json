@@ -1,22 +1,10 @@
 {
   "language": "swedish",
   "groups": [
-    [
-      0,
-      100
-    ],
-    [
-      101,
-      300
-    ],
-    [
-      301,
-      600
-    ],
-    [
-      601,
-      9999
-    ]
+    [0, 100],
+    [101, 300],
+    [301, 600],
+    [601, 9999]
   ],
   "quotes": [
     {
@@ -354,6 +342,12 @@
       "source": "Dan Andersson, Kolarhistorier",
       "length": 257,
       "id": 56
+    },
+    {
+      "text": "Har du sett dig i spegeln tillräckligt länge för att våga tänka på vem det är du ser? Man ser så enkel ut fastän man känner sig så komplicerad.",
+      "source": "Arne Sand, Ljugarstriden",
+      "length": 143,
+      "id": 57
     }
   ]
 }

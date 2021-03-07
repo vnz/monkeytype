@@ -12,7 +12,8 @@ function canBailOut() {
       customText.time >= 3600) ||
     (config.mode === "words" && config.words >= 5000) ||
     config.words === 0 ||
-    (config.mode === "time" && (config.time >= 3600 || config.time === 0))
+    (config.mode === "time" && (config.time >= 3600 || config.time === 0)) ||
+    config.mode == "zen"
   );
 }
 
@@ -182,6 +183,15 @@ let commands = {
       display: "Toggle quick tab mode",
       exec: () => {
         toggleQuickTabMode();
+      },
+    },
+    {
+      id: "changeRepeatQuotes",
+      display: "Change repeat quotes...",
+      subgroup: true,
+      exec: () => {
+        currentCommands.push(commandsRepeatQuotes);
+        showCommandLine();
       },
     },
     {
@@ -696,7 +706,7 @@ let commands = {
       display: "Toggle Monkey",
       visible: false,
       exec: () => {
-        $("#monkey").toggleClass("hidden");
+        toggleMonkey();
       },
     },
   ],
@@ -738,6 +748,26 @@ let commandsPageWidth = {
       display: "max",
       exec: () => {
         setPageWidth("max");
+      },
+    },
+  ],
+};
+
+let commandsRepeatQuotes = {
+  title: "Change repeat quotes...",
+  list: [
+    {
+      id: "setRepeatQuotesOff",
+      display: "off",
+      exec: () => {
+        setRepeatQuotes("off");
+      },
+    },
+    {
+      id: "setRepeatQuotesTyping",
+      display: "typing",
+      exec: () => {
+        setRepeatQuotes("typing");
       },
     },
   ],
@@ -1373,6 +1403,15 @@ let commandsMode = {
         restartTest();
       },
     },
+    {
+      id: "changeModeZen",
+      display: "zen",
+      exec: () => {
+        setMode("zen");
+        manualRestart = true;
+        restartTest();
+      },
+    },
   ],
 };
 let commandsTimeConfig = {
@@ -1647,6 +1686,18 @@ Misc.getFontsList().then((fonts) => {
         setFontFamily(font.name.replace(/ /g, "_"));
       },
     });
+  });
+  commandsFonts.list.push({
+    id: "setFontFamilyCustom",
+    display: "custom...",
+    input: true,
+    hover: () => {
+      previewFontFamily(config.fontFamily);
+    },
+    exec: (name) => {
+      setFontFamily(name.replace(/\s/g, "_"));
+      settingsGroups.fontFamily.updateButton();
+    },
   });
 });
 
